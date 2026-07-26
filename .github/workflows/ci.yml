@@ -119,3 +119,19 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  recursive-prover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/recursive-prover/go.mod
+          cache-dependency-path: services/recursive-prover/go.mod
+      - name: Format check
+        working-directory: services/recursive-prover
+        run: test -z "$(gofmt -l .)"
+      - name: Test fail-closed proof API
+        working-directory: services/recursive-prover
+        run: go test -race ./...

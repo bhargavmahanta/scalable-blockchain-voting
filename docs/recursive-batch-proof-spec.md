@@ -3,6 +3,11 @@
 This document defines the proof required to remove the remaining V3 batcher
 trust. No artifact in the repository currently claims to satisfy this statement.
 
+The fail-closed Go job API in `services/recursive-prover/` validates the V4
+manifest envelope and exposes submit/status/artifact operations. It deliberately
+returns no proof until the native recursive engine implements and passes every
+constraint below.
+
 ## Public statement
 
 A batch proof must bind:
