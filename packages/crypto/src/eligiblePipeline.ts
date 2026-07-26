@@ -102,6 +102,13 @@ const domainHash = (domain: string): Bytes32 => keccak256(stringToHex(domain));
 const normalizeBytes32 = (value: Bytes32): Bytes32 =>
   value.toLowerCase() as Bytes32;
 const normalizeHex = (value: Hex): Hex => value.toLowerCase() as Hex;
+const snarkjsCliPath = join(
+  process.cwd(),
+  "node_modules",
+  "snarkjs",
+  "build",
+  "cli.cjs",
+);
 
 function assertBytes32(value: string, label: string): asserts value is Bytes32 {
   assert.equal(
@@ -370,8 +377,8 @@ export async function verifyEligibleVotePackageProof(
       writeFile(publicSignalsPath, JSON.stringify(decoded.publicSignals.map(String))),
       writeFile(proofPath, JSON.stringify(decoded.proof)),
     ]);
-    const child = spawn("npx", [
-      "snarkjs", "groth16", "verify", verificationKeyPath, publicSignalsPath, proofPath,
+    const child = spawn(process.execPath, [
+      snarkjsCliPath, "groth16", "verify", verificationKeyPath, publicSignalsPath, proofPath,
     ], { stdio: ["ignore", "pipe", "pipe"] });
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];

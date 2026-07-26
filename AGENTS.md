@@ -49,7 +49,13 @@ states this. **Never weaken this honesty.**
 
 ## CI
 
-- No existing CI yet (`.github/` does not exist)
+- `.github/workflows/ci.yml` runs deterministic installs, dependency and
+  proving-artifact checks, type checking, Solidity/circuit compilation,
+  Hardhat/crypto tests, Slither, dependency review, and secret scanning.
+- `.github/workflows/nightly.yml` runs proof suites and the synthetic scale
+  benchmark on a schedule or manual dispatch.
+- Branches use the `name/feature` convention, for example
+  `bhargav/security-fixes`.
 
 ## Circuits
 

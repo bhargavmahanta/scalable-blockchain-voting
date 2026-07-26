@@ -4,6 +4,8 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const root = process.cwd();
+const circomCliPath = path.join(root, "node_modules/circom2/cli.js");
+const snarkjsCliPath = path.join(root, "node_modules/snarkjs/build/cli.cjs");
 const buildDirectory = path.join(root, "circuits/build/eligible_ballot");
 const ceremonyDirectory = path.join(root, "circuits/ceremony/eligible_ballot");
 const generatedDirectory = path.join(root, "contracts/generated");
@@ -27,16 +29,16 @@ await mkdir(buildDirectory, { recursive: true });
 await mkdir(ceremonyDirectory, { recursive: true });
 await mkdir(generatedDirectory, { recursive: true });
 
-run("npx", ["circom2", "circuits/eligible_ballot.circom", "--r1cs", "--wasm", "--sym", "-o", "circuits/build/eligible_ballot"]);
-run("npx", ["snarkjs", "powersoftau", "new", "bn128", "16", pot0]);
-run("npx", ["snarkjs", "powersoftau", "contribute", pot0, pot1,
+run(process.execPath, [circomCliPath, "circuits/eligible_ballot.circom", "--r1cs", "--wasm", "--sym", "-o", "circuits/build/eligible_ballot"]);
+run(process.execPath, [snarkjsCliPath, "powersoftau", "new", "bn128", "16", pot0]);
+run(process.execPath, [snarkjsCliPath, "powersoftau", "contribute", pot0, pot1,
   "--name=SVB eligible ballot local contribution", `--entropy=${randomBytes(64).toString("hex")}`]);
-run("npx", ["snarkjs", "powersoftau", "prepare", "phase2", pot1, potFinal]);
-run("npx", ["snarkjs", "groth16", "setup", r1csPath, potFinal, initialZkey]);
-run("npx", ["snarkjs", "zkey", "contribute", initialZkey, finalZkey,
+run(process.execPath, [snarkjsCliPath, "powersoftau", "prepare", "phase2", pot1, potFinal]);
+run(process.execPath, [snarkjsCliPath, "groth16", "setup", r1csPath, potFinal, initialZkey]);
+run(process.execPath, [snarkjsCliPath, "zkey", "contribute", initialZkey, finalZkey,
   "--name=SVB eligible ballot zkey contribution", `--entropy=${randomBytes(64).toString("hex")}`]);
-run("npx", ["snarkjs", "zkey", "export", "verificationkey", finalZkey, verificationKey]);
-run("npx", ["snarkjs", "zkey", "export", "solidityverifier", finalZkey, verifierPath]);
+run(process.execPath, [snarkjsCliPath, "zkey", "export", "verificationkey", finalZkey, verificationKey]);
+run(process.execPath, [snarkjsCliPath, "zkey", "export", "solidityverifier", finalZkey, verifierPath]);
 const generatedVerifier = await readFile(verifierPath, "utf8");
 await writeFile(
   verifierPath,

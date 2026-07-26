@@ -2,13 +2,21 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
 
     steps:
       - uses: actions/checkout@v4
@@ -18,7 +26,18 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - run: npm install
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Report dependency findings
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Block critical dependency findings
+        run: npm audit --audit-level=critical
+
+      - name: Verify committed proving artifacts
+        run: npm run verify:artifacts
 
       - name: TypeScript type-check
         run: npm run typecheck
@@ -26,7 +45,7 @@ jobs:
       - name: Compile Solidity
         run: npm run compile
 
-      - name: Compile circulator
+      - name: Compile and inspect eligible-ballot circuit
         run: npm run circuit:compile:eligible-ballot
 
       - name: Run Hardhat tests
@@ -40,3 +59,63 @@ jobs:
         run: |
           echo "Running readiness check in annotation-only mode."
           echo "Real-proof artifacts not expected in CI."
+
+  solidity-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Slither and Solidity compiler
+        run: |
+          python -m pip install slither-analyzer==0.11.5
+          solc-select install 0.8.28
+          solc-select use 0.8.28
+
+      - name: Run Slither
+        run: >-
+          slither contracts/
+          --solc-remaps
+          '@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
+          @anon-aadhaar/contracts/=node_modules/@anon-aadhaar/contracts/'
+          --filter-paths 'node_modules|contracts/generated'
+          --fail-high
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v4
+        # GitHub does not expose dependency review on every fork. The action
+        # still records that limitation while npm's critical gate remains
+        # blocking in build-test.
+        continue-on-error: true
+
+  secrets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

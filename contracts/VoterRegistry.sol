@@ -18,6 +18,7 @@ interface IEligibilityVerifier {
 /// strong as the configured verifier contract.
 contract VoterRegistry is Ownable {
     error IdentityAlreadyRegistered(bytes32 identityNullifier);
+    error InvalidIdentityNullifier();
     error InvalidEligibilityProof();
     error NoEligibilityVerifier();
     error VotingKeyAlreadyRegistered(address votingKey);
@@ -107,6 +108,9 @@ contract VoterRegistry is Ownable {
     }
 
     function _register(bytes32 identityNullifier, address votingKey) private {
+        if (identityNullifier == bytes32(0)) {
+            revert InvalidIdentityNullifier();
+        }
         if (votingKey == address(0)) revert InvalidVotingKey();
         if (votingKeys[identityNullifier] != address(0)) {
             revert IdentityAlreadyRegistered(identityNullifier);

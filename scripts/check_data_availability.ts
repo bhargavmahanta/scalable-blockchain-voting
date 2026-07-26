@@ -29,6 +29,41 @@ type DataAvailabilityResult = {
   error?: string;
 };
 
+function normalizedPath(inputDir: string, path: string): string {
+  const absolute = resolve(inputDir, path);
+  return process.platform === "win32" ? absolute.toLowerCase() : absolute;
+}
+
+function duplicateReferenceErrors(
+  inputDir: string,
+  packages: readonly DataAvailabilityInputPackage[],
+): readonly string[][] {
+  const errors = packages.map(() => [] as string[]);
+  const contentIds = new Map<string, number>();
+  const paths = new Map<string, number>();
+
+  packages.forEach((entry, index) => {
+    const priorContentId = contentIds.get(entry.contentId);
+    if (priorContentId !== undefined) {
+      errors[index]!.push(
+        `contentId duplicates packages[${priorContentId}].contentId`,
+      );
+    } else {
+      contentIds.set(entry.contentId, index);
+    }
+
+    const pathKey = normalizedPath(inputDir, entry.path);
+    const priorPath = paths.get(pathKey);
+    if (priorPath !== undefined) {
+      errors[index]!.push(`path duplicates packages[${priorPath}].path`);
+    } else {
+      paths.set(pathKey, index);
+    }
+  });
+
+  return errors;
+}
+
 function usage(): never {
   throw new Error(
     "Usage: npm run check:data -- <batch-input.json>",
@@ -125,9 +160,29 @@ async function main() {
   }
 
   const inputDir = dirname(inputPath);
-  const checks = await Promise.all(
+  const referenceErrors = duplicateReferenceErrors(inputDir, input.packages);
+  const rawChecks = await Promise.all(
     input.packages.map((entry) => checkPackage(inputDir, input.electionId, entry)),
   );
+  const digests = new Map<Bytes32, number>();
+  const checks = rawChecks.map((check, index) => {
+    if (!check.ok) return check;
+    const errors = [...referenceErrors[index]!];
+    if (check.digest !== undefined) {
+      const priorDigest = digests.get(check.digest);
+      if (priorDigest !== undefined) {
+        errors.push(`digest duplicates packages[${priorDigest}]`);
+      } else {
+        digests.set(check.digest, index);
+      }
+    }
+    if (errors.length === 0) return check;
+    return {
+      ...check,
+      ok: false,
+      error: `duplicate package reference: ${errors.join("; ")}`,
+    };
+  });
   const failed = checks.filter((check) => !check.ok);
 
   console.log(JSON.stringify({
