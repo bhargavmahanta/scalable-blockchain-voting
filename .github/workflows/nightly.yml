@@ -1,0 +1,30 @@
+name: Nightly cryptographic validation
+
+on:
+  schedule:
+    - cron: "30 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proofs-and-scale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - run: npm run verify:artifacts
+      - run: npm run compile
+      - run: npm run test:proof:ballot
+      - run: npm run test:proof:eligible
+      - run: npm run test:crypto
+      - run: npm run benchmark:scale -- 10000

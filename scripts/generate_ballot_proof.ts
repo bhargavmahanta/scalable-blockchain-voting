@@ -29,6 +29,7 @@ if (inputPath === undefined || outputDirectory === undefined) {
 }
 
 const root = process.cwd();
+const snarkjsCliPath = path.join(root, "node_modules/snarkjs/build/cli.cjs");
 const wasmPath = path.join(
   root,
   "circuits/build/ballot_validity/ballot_validity_js/ballot_validity.wasm",
@@ -47,9 +48,9 @@ await readFile(zkeyPath);
 await mkdir(resolvedOutputDirectory, { recursive: true });
 
 const prove = spawnSync(
-  "npx",
+  process.execPath,
   [
-    "snarkjs",
+    snarkjsCliPath,
     "groth16",
     "fullprove",
     path.resolve(inputPath),
@@ -65,8 +66,8 @@ if (prove.status !== 0) {
 }
 
 const calldata = spawnSync(
-  "npx",
-  ["snarkjs", "zkey", "export", "soliditycalldata", publicSignalsPath, proofPath],
+  process.execPath,
+  [snarkjsCliPath, "zkey", "export", "soliditycalldata", publicSignalsPath, proofPath],
   { cwd: root, encoding: "utf8" },
 );
 if (calldata.status !== 0) {

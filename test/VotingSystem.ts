@@ -76,6 +76,271 @@ describe("Voting system foundation", async function () {
     );
   });
 
+  it("rejects trusted registration by a non-owner and leaves the identity unregistered", async function () {
+    const registry = await viem.deployContract("VoterRegistry", [
+      electionId,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const identityNullifier = keccak256(stringToHex("unauthorized-registration"));
+
+    await assert.rejects(
+      registry.write.register(
+        [identityNullifier, voter.account.address],
+        { account: outsider.account },
+      ),
+    );
+    await assert.rejects(registry.read.votingKeyOf([identityNullifier]));
+    assert.equal(
+      await registry.read.isVotingKeyRegistered([voter.account.address]),
+      false,
+    );
+  });
+
+  it("rejects duplicate identity-nullifier registration and preserves the original voting key", async function () {
+    const registry = await viem.deployContract("VoterRegistry", [
+      electionId,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const identityNullifier = keccak256(stringToHex("duplicate-identity"));
+    await registry.write.register(
+      [identityNullifier, voter.account.address],
+      { account: owner.account },
+    );
+
+    await assert.rejects(
+      registry.write.register(
+        [identityNullifier, outsider.account.address],
+        { account: owner.account },
+      ),
+    );
+    assert.equal(
+      ((await registry.read.votingKeyOf([identityNullifier])) as Address).toLowerCase(),
+      voter.account.address.toLowerCase(),
+    );
+    assert.equal(
+      await registry.read.isVotingKeyRegistered([outsider.account.address]),
+      false,
+    );
+  });
+
+  it("rejects the zero identity nullifier", async function () {
+    const registry = await viem.deployContract("VoterRegistry", [
+      electionId,
+      owner.account.address,
+      zeroAddress,
+    ]);
+
+    await assert.rejects(
+      registry.write.register(
+        [zeroHash, voter.account.address],
+        { account: owner.account },
+      ),
+    );
+    await assert.rejects(registry.read.votingKeyOf([zeroHash]));
+  });
+
+  it("rejects the zero voting address and leaves the identity unregistered", async function () {
+    const registry = await viem.deployContract("VoterRegistry", [
+      electionId,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const identityNullifier = keccak256(stringToHex("zero-voting-address"));
+
+    await assert.rejects(
+      registry.write.register(
+        [identityNullifier, zeroAddress],
+        { account: owner.account },
+      ),
+    );
+    await assert.rejects(registry.read.votingKeyOf([identityNullifier]));
+  });
+
+  it("rejects reusing one voting key for another identity", async function () {
+    const registry = await viem.deployContract("VoterRegistry", [
+      electionId,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const firstIdentity = keccak256(stringToHex("first-key-owner"));
+    const secondIdentity = keccak256(stringToHex("second-key-owner"));
+    await registry.write.register(
+      [firstIdentity, voter.account.address],
+      { account: owner.account },
+    );
+
+    await assert.rejects(
+      registry.write.register(
+        [secondIdentity, voter.account.address],
+        { account: owner.account },
+      ),
+    );
+    await assert.rejects(registry.read.votingKeyOf([secondIdentity]));
+    assert.equal(
+      ((await registry.read.votingKeyOf([firstIdentity])) as Address).toLowerCase(),
+      voter.account.address.toLowerCase(),
+    );
+  });
+
+  it("rejects a direct ballot from an unregistered identity without consuming its nullifier", async function () {
+    const registry = await viem.deployContract("VoterRegistry", [
+      electionId,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const voting = await viem.deployContract("VotingContract", [
+      electionId,
+      candidateListHash,
+      registry.address,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const ballotNullifier = keccak256(stringToHex("unregistered-ballot"));
+
+    await assert.rejects(
+      voting.write.submitBallot(
+        [
+          keccak256(stringToHex("unknown-identity")),
+          ballotNullifier,
+          keccak256(stringToHex("unregistered-package")),
+        ],
+        { account: voter.account },
+      ),
+    );
+    assert.equal(await voting.read.isNullifierUsed([ballotNullifier]), false);
+  });
+
+  it("rejects a wallet submitting for another voter without consuming the nullifier", async function () {
+    const registry = await viem.deployContract("VoterRegistry", [
+      electionId,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const voting = await viem.deployContract("VotingContract", [
+      electionId,
+      candidateListHash,
+      registry.address,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const identityNullifier = keccak256(stringToHex("wallet-bound-identity"));
+    const ballotNullifier = keccak256(stringToHex("wallet-bound-ballot"));
+    await registry.write.register(
+      [identityNullifier, voter.account.address],
+      { account: owner.account },
+    );
+
+    await assert.rejects(
+      voting.write.submitBallot(
+        [
+          identityNullifier,
+          ballotNullifier,
+          keccak256(stringToHex("wallet-bound-package")),
+        ],
+        { account: outsider.account },
+      ),
+    );
+    assert.equal(await voting.read.isNullifierUsed([ballotNullifier]), false);
+  });
+
+  it("rejects a duplicate ballot nullifier submitted by a different registered voter", async function () {
+    const registry = await viem.deployContract("VoterRegistry", [
+      electionId,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const voting = await viem.deployContract("VotingContract", [
+      electionId,
+      candidateListHash,
+      registry.address,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const firstIdentity = keccak256(stringToHex("duplicate-ballot-first"));
+    const secondIdentity = keccak256(stringToHex("duplicate-ballot-second"));
+    const ballotNullifier = keccak256(stringToHex("shared-ballot-nullifier"));
+    const packageDigest = keccak256(stringToHex("shared-nullifier-package"));
+    await registry.write.register(
+      [firstIdentity, voter.account.address],
+      { account: owner.account },
+    );
+    await registry.write.register(
+      [secondIdentity, outsider.account.address],
+      { account: owner.account },
+    );
+    await voting.write.submitBallot(
+      [firstIdentity, ballotNullifier, packageDigest],
+      { account: voter.account },
+    );
+
+    await assert.rejects(
+      voting.write.submitBallot(
+        [secondIdentity, ballotNullifier, packageDigest],
+        { account: outsider.account },
+      ),
+    );
+    assert.equal(await voting.read.isNullifierUsed([ballotNullifier]), true);
+  });
+
+  it("rejects a zero ballot nullifier without changing ballot state", async function () {
+    const registry = await viem.deployContract("VoterRegistry", [
+      electionId,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const voting = await viem.deployContract("VotingContract", [
+      electionId,
+      candidateListHash,
+      registry.address,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const identityNullifier = keccak256(stringToHex("zero-ballot-nullifier-identity"));
+    await registry.write.register(
+      [identityNullifier, voter.account.address],
+      { account: owner.account },
+    );
+
+    await assert.rejects(
+      voting.write.submitBallot(
+        [identityNullifier, zeroHash, keccak256(stringToHex("zero-nullifier-package"))],
+        { account: voter.account },
+      ),
+    );
+    assert.equal(await voting.read.isNullifierUsed([zeroHash]), false);
+  });
+
+  it("rejects a zero package digest without consuming the ballot nullifier", async function () {
+    const registry = await viem.deployContract("VoterRegistry", [
+      electionId,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const voting = await viem.deployContract("VotingContract", [
+      electionId,
+      candidateListHash,
+      registry.address,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const identityNullifier = keccak256(stringToHex("zero-package-identity"));
+    const ballotNullifier = keccak256(stringToHex("zero-package-ballot"));
+    await registry.write.register(
+      [identityNullifier, voter.account.address],
+      { account: owner.account },
+    );
+
+    await assert.rejects(
+      voting.write.submitBallot(
+        [identityNullifier, ballotNullifier, zeroHash],
+        { account: voter.account },
+      ),
+    );
+    assert.equal(await voting.read.isNullifierUsed([ballotNullifier]), false);
+  });
+
   it("accepts direct ballots through the ballot verifier seam", async function () {
     const verifier = await viem.deployContract("MockBallotProofVerifier");
     const registry = await viem.deployContract("VoterRegistry", [

@@ -4,6 +4,11 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const repositoryRoot = process.cwd();
+const circomCliPath = path.join(repositoryRoot, "node_modules/circom2/cli.js");
+const snarkjsCliPath = path.join(
+  repositoryRoot,
+  "node_modules/snarkjs/build/cli.cjs",
+);
 const circuitBuildDirectory = path.join(
   repositoryRoot,
   "circuits/build/ballot_validity",
@@ -42,8 +47,8 @@ await mkdir(circuitBuildDirectory, { recursive: true });
 await mkdir(ceremonyDirectory, { recursive: true });
 await mkdir(generatedContractsDirectory, { recursive: true });
 
-run("npx", [
-  "circom2",
+run(process.execPath, [
+  circomCliPath,
   "circuits/ballot_validity.circom",
   "--r1cs",
   "--wasm",
@@ -52,16 +57,16 @@ run("npx", [
   "circuits/build/ballot_validity",
 ]);
 
-run("npx", [
-  "snarkjs",
+run(process.execPath, [
+  snarkjsCliPath,
   "powersoftau",
   "new",
   "bn128",
   "15",
   initialPowersOfTauPath,
 ]);
-run("npx", [
-  "snarkjs",
+run(process.execPath, [
+  snarkjsCliPath,
   "powersoftau",
   "contribute",
   initialPowersOfTauPath,
@@ -69,24 +74,24 @@ run("npx", [
   "--name=SVB local demo contribution",
   `--entropy=${randomBytes(64).toString("hex")}`,
 ]);
-run("npx", [
-  "snarkjs",
+run(process.execPath, [
+  snarkjsCliPath,
   "powersoftau",
   "prepare",
   "phase2",
   contributedPowersOfTauPath,
   preparedPowersOfTauPath,
 ]);
-run("npx", [
-  "snarkjs",
+run(process.execPath, [
+  snarkjsCliPath,
   "groth16",
   "setup",
   r1csPath,
   preparedPowersOfTauPath,
   initialZkeyPath,
 ]);
-run("npx", [
-  "snarkjs",
+run(process.execPath, [
+  snarkjsCliPath,
   "zkey",
   "contribute",
   initialZkeyPath,
@@ -94,16 +99,16 @@ run("npx", [
   "--name=SVB ballot circuit local contribution",
   `--entropy=${randomBytes(64).toString("hex")}`,
 ]);
-run("npx", [
-  "snarkjs",
+run(process.execPath, [
+  snarkjsCliPath,
   "zkey",
   "export",
   "verificationkey",
   finalZkeyPath,
   verificationKeyPath,
 ]);
-run("npx", [
-  "snarkjs",
+run(process.execPath, [
+  snarkjsCliPath,
   "zkey",
   "export",
   "solidityverifier",

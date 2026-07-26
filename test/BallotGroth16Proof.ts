@@ -28,7 +28,32 @@ const packageCommitment =
 
 describe("real Groth16 ballot validity proof", async function () {
   const { viem } = await network.create();
-  const [owner, voter] = await viem.getWalletClients();
+  const [owner, voter, outsider] = await viem.getWalletClients();
+
+  async function deployVoting() {
+    const groth16Verifier = await viem.deployContract("BallotGroth16Verifier");
+    const adapter = await viem.deployContract("BallotGroth16VerifierAdapter", [
+      groth16Verifier.address,
+    ]);
+    const registry = await viem.deployContract("VoterRegistry", [
+      electionId,
+      owner.account.address,
+      zeroAddress,
+    ]);
+    const voting = await viem.deployContract("VotingContract", [
+      electionId,
+      candidateListHash,
+      registry.address,
+      owner.account.address,
+      adapter.address,
+    ]);
+    const identityNullifier = keccak256(stringToHex("groth16-proof-identity"));
+    await registry.write.register(
+      [identityNullifier, voter.account.address],
+      { account: owner.account },
+    );
+    return { voting, identityNullifier };
+  }
 
   it("verifies the generated proof and rejects changed bindings", async function () {
     const groth16Verifier = await viem.deployContract("BallotGroth16Verifier");
@@ -147,5 +172,115 @@ describe("real Groth16 ballot validity proof", async function () {
       await voting.read.ballotPublicInputsHashOf([ballotNullifier]),
       fixture.publicInputsHash,
     );
+  });
+
+  it("rejects an empty proof without consuming the ballot nullifier", async function () {
+    const { voting, identityNullifier } = await deployVoting();
+
+    await assert.rejects(
+      voting.write.submitBallotWithProof(
+        [
+          identityNullifier,
+          ballotNullifier,
+          packageCommitment,
+          fixture.publicInputsHash,
+          "0x",
+        ],
+        { account: voter.account },
+      ),
+    );
+    assert.equal(await voting.read.isNullifierUsed([ballotNullifier]), false);
+  });
+
+  it("rejects random proof bytes without consuming the ballot nullifier", async function () {
+    const { voting, identityNullifier } = await deployVoting();
+
+    await assert.rejects(
+      voting.write.submitBallotWithProof(
+        [
+          identityNullifier,
+          ballotNullifier,
+          packageCommitment,
+          fixture.publicInputsHash,
+          "0x1234",
+        ],
+        { account: voter.account },
+      ),
+    );
+    assert.equal(await voting.read.isNullifierUsed([ballotNullifier]), false);
+  });
+
+  it("rejects a valid proof when the public-input hash is modified", async function () {
+    const { voting, identityNullifier } = await deployVoting();
+
+    await assert.rejects(
+      voting.write.submitBallotWithProof(
+        [
+          identityNullifier,
+          ballotNullifier,
+          packageCommitment,
+          keccak256(stringToHex("modified-ballot-public-inputs")),
+          fixture.proof,
+        ],
+        { account: voter.account },
+      ),
+    );
+    assert.equal(await voting.read.isNullifierUsed([ballotNullifier]), false);
+  });
+
+  it("rejects a valid proof reused with a different package", async function () {
+    const { voting, identityNullifier } = await deployVoting();
+
+    await assert.rejects(
+      voting.write.submitBallotWithProof(
+        [
+          identityNullifier,
+          ballotNullifier,
+          keccak256(stringToHex("different-proof-package")),
+          fixture.publicInputsHash,
+          fixture.proof,
+        ],
+        { account: voter.account },
+      ),
+    );
+    assert.equal(await voting.read.isNullifierUsed([ballotNullifier]), false);
+  });
+
+  it("rejects a valid proof reused with a different nullifier", async function () {
+    const { voting, identityNullifier } = await deployVoting();
+    const changedNullifier =
+      `0x${(BigInt(ballotNullifier) + 1n).toString(16).padStart(64, "0")}` as Hex;
+
+    await assert.rejects(
+      voting.write.submitBallotWithProof(
+        [
+          identityNullifier,
+          changedNullifier,
+          packageCommitment,
+          fixture.publicInputsHash,
+          fixture.proof,
+        ],
+        { account: voter.account },
+      ),
+    );
+    assert.equal(await voting.read.isNullifierUsed([changedNullifier]), false);
+  });
+
+  it("rejects a valid proof submitted by a different voting key", async function () {
+    const { voting, identityNullifier } = await deployVoting();
+
+    await assert.rejects(
+      voting.write.submitBallotWithProof(
+        [
+          identityNullifier,
+          ballotNullifier,
+          packageCommitment,
+          fixture.publicInputsHash,
+          fixture.proof,
+        ],
+        { account: outsider.account },
+      ),
+    );
+    assert.equal(await voting.read.isNullifierUsed([ballotNullifier]), false);
   });
 });

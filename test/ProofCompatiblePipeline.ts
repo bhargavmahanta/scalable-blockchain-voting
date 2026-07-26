@@ -203,14 +203,38 @@ describe("proof-compatible package, batch, and tally pipeline", function () {
         true,
       );
     }
+    const tally = await decryptProofCompatibleTallyWithShares({
+      ciphertext: aggregate,
+      shares,
+      threshold: 5,
+      maxVotes: 2,
+    });
+    assert.deepEqual(tally, [0, 1, 1, 0]);
+    assert.equal(tally.reduce((sum, count) => sum + count, 0), 2);
     assert.deepEqual(
       await decryptProofCompatibleTallyWithShares({
         ciphertext: aggregate,
-        shares,
+        shares: [...shares].reverse(),
         threshold: 5,
         maxVotes: 2,
       }),
-      [0, 1, 1, 0],
+      tally,
+    );
+    await assert.rejects(
+      decryptProofCompatibleTallyWithShares({
+        ciphertext: aggregate,
+        shares: shares.slice(0, 4),
+        threshold: 5,
+        maxVotes: 2,
+      }),
+    );
+    await assert.rejects(
+      decryptProofCompatibleTallyWithShares({
+        ciphertext: aggregate,
+        shares: [shares[0]!, shares[0]!, ...shares.slice(1, 4)],
+        threshold: 5,
+        maxVotes: 2,
+      }),
     );
 
     const tampered = structuredClone(shares[0]!);
@@ -229,6 +253,36 @@ describe("proof-compatible package, batch, and tally pipeline", function () {
         threshold: 5,
         maxVotes: 2,
       }),
+    );
+
+    const modifiedPartialDecryption = structuredClone(shares[0]!);
+    modifiedPartialDecryption.decryptionSharePoints = [
+      shares[1]!.decryptionSharePoints[0]!,
+      ...modifiedPartialDecryption.decryptionSharePoints.slice(1),
+    ];
+    assert.equal(
+      await verifyProofCompatibleDecryptionShare({
+        ciphertext: aggregate,
+        share: modifiedPartialDecryption,
+      }),
+      false,
+    );
+
+    const otherAggregate = await aggregateProofCompatibleCiphertexts([
+      first.ciphertext,
+    ]);
+    const shareForOtherAggregate = await createProofCompatibleDecryptionShare({
+      trusteeIndex: keySet.shares[0]!.trusteeIndex,
+      privateShare: keySet.shares[0]!.privateShare,
+      ciphertext: otherAggregate,
+      proofNonces: [201n, 202n, 203n, 204n],
+    });
+    assert.equal(
+      await verifyProofCompatibleDecryptionShare({
+        ciphertext: aggregate,
+        share: shareForOtherAggregate,
+      }),
+      false,
     );
   });
 });

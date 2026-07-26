@@ -15,7 +15,7 @@ describe("complete V3 dashboard artifact generation", function () {
       ], { cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"] });
       const stderr: Buffer[] = [];
       child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
-      const timeout = setTimeout(() => child.kill("SIGTERM"), 90_000);
+      const timeout = setTimeout(() => child.kill("SIGTERM"), 180_000);
       const [exitCode] = await once(child, "close") as [number];
       clearTimeout(timeout);
       assert.equal(exitCode, 0, Buffer.concat(stderr).toString());

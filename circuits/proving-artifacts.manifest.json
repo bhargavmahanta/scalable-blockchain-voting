@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "algorithm": "sha256",
+  "artifacts": [
+    {
+      "path": "circuits/build/ballot_validity/ballot_validity_final.zkey",
+      "bytes": 15660159,
+      "sha256": "1cddcb4afbb27efccdf57413c243e1cb9f3c095aac403be5064c576783ea5b26"
+    },
+    {
+      "path": "circuits/build/ballot_validity/verification_key.json",
+      "bytes": 6766,
+      "sha256": "7ba809b8db05b0e4cfd5c0fe9360d00499965d36be37f07a07982264b26a90f2",
+      "normalization": "lf"
+    },
+    {
+      "path": "circuits/build/ballot_validity/ballot_validity_js/ballot_validity.wasm",
+      "bytes": 3157005,
+      "sha256": "26b01bcbea9aa08401f2d19fb42ecc6aae48f6de0f4eff45ed28f101bc8b2e15"
+    },
+    {
+      "path": "circuits/build/eligible_ballot/eligible_ballot_final.zkey",
+      "bytes": 22685739,
+      "sha256": "e6ca60d0ab827e0738caa1d8e95950f07a960d4b44fd905160a17c62dd7f3f44"
+    },
+    {
+      "path": "circuits/build/eligible_ballot/verification_key.json",
+      "bytes": 6944,
+      "sha256": "d019c009036c4d6e87dca93d84d4e1f38a2b08cf97783d54504ae5a6ab6e25f2",
+      "normalization": "lf"
+    },
+    {
+      "path": "circuits/build/eligible_ballot/eligible_ballot_js/eligible_ballot.wasm",
+      "bytes": 3994472,
+      "sha256": "92572b97458ca34bfe49e510ae8996ef1193907900367ee658f44954fd9ec338"
+    }
+  ]
+}

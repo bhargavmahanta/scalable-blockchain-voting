@@ -61,4 +61,41 @@ describe("frontend demo files", function () {
       assert.match(html, /Back to overview/);
     }
   });
+
+  it("does not persist, log, render, or place private ceremony data in URLs", async function () {
+    const files = [
+      "index.html",
+      "app.js",
+      "interactive.js",
+      ...requiredPages.map((page) => join("pages", `${page}.html`)),
+    ];
+    const privateDataPattern =
+      /credentialSecret|credentialNonce|privateShare|privateKey|trusteeSecret/i;
+    const browserLeakPattern =
+      /localStorage|sessionStorage|console\.(?:log|info|warn|error)|URLSearchParams|location\.(?:search|hash)/;
+
+    for (const file of files) {
+      const content = await readFile(join(demoDir, file), "utf8");
+      assert.doesNotMatch(content, privateDataPattern, `${file} references private data`);
+      assert.doesNotMatch(content, browserLeakPattern, `${file} uses a browser leak sink`);
+    }
+  });
+
+  it("loads generated evidence without caching and renders understandable artifact errors", async function () {
+    const appScript = await readFile(join(demoDir, "app.js"), "utf8");
+    const interactiveScript = await readFile(
+      join(demoDir, "interactive.js"),
+      "utf8",
+    );
+
+    assert.match(appScript, /fetch\("\/api\/status", \{ cache: "no-store" \}\)/);
+    assert.match(interactiveScript, /fetch\(path, \{ cache: "no-store" \}\)/);
+    assert.match(interactiveScript, /is unavailable/);
+    assert.match(interactiveScript, /Run npm run demo:serve/);
+    assert.match(appScript, /tallyCounts:\s*summary\.tallyCounts/);
+    assert.match(
+      interactiveScript,
+      /summary\.tallyCounts\.reduce\(\(sum, count\) => sum \+ count, 0\) === summary\.ballotCount/,
+    );
+  });
 });

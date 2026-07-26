@@ -62,11 +62,6 @@ function votePackage(): VotePackageV1 {
 describe("IPFS vote package upload script", function () {
   it(
     "uploads canonical vote package JSON to a configured IPFS HTTP API",
-    {
-      skip: process.env.RUN_IPFS_UPLOAD_SCRIPT_TEST === "1"
-        ? false
-        : "requires permission to open a localhost listener",
-    },
     async function () {
     const receivedChunks: Buffer[] = [];
     const server = createServer((request, response) => {

@@ -20,6 +20,7 @@ interface IBallotProofVerifier {
 /// per ballot.
 contract VotingContract is Ownable {
     error InvalidDigest();
+    error InvalidBallotNullifier();
     error InvalidBallotPublicInputs();
     error NonCanonicalBallotNullifier();
     error NoBallotVerifier();
@@ -126,6 +127,7 @@ contract VotingContract is Ownable {
         bytes32 votePackageDigest,
         bytes32 ballotPublicInputsHash
     ) private {
+        if (ballotNullifier == bytes32(0)) revert InvalidBallotNullifier();
         if (votePackageDigest == bytes32(0)) revert InvalidDigest();
         if (isNullifierUsed[ballotNullifier]) {
             revert NullifierAlreadyUsed(ballotNullifier);

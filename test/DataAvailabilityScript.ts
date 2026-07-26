@@ -151,4 +151,67 @@ describe("data availability script", function () {
       await rm(tempDir, { force: true, recursive: true });
     }
   });
+
+  it("fails for malformed package JSON and an invalid content identifier", async function () {
+    const tempDir = await mkdtemp(join(tmpdir(), "svb-da-test-"));
+    try {
+      await writeFile(join(tempDir, "malformed.json"), "{not-json", "utf8");
+      const inputPath = join(tempDir, "batch-input.json");
+      await writeFile(
+        inputPath,
+        JSON.stringify({
+          electionId,
+          packages: [
+            {
+              contentId: "ipfs://bafy-malformed-json",
+              path: "malformed.json",
+            },
+            {
+              contentId: "https://gateway.example/not-an-ipfs-id",
+              path: "malformed.json",
+            },
+          ],
+        }),
+        "utf8",
+      );
+
+      const result = await runDataAvailabilityCheck(inputPath);
+
+      assert.equal(result.exitCode, 1);
+      assert.equal(result.output.allAvailable, false);
+      assert.match(result.output.checks[0]?.error ?? "", /JSON|position|property/i);
+      assert.match(result.output.checks[1]?.error ?? "", /invalid IPFS content ID/i);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("rejects duplicate package references in one availability input", async function () {
+    const tempDir = await mkdtemp(join(tmpdir(), "svb-da-test-"));
+    try {
+      const vote = votePackage("duplicate-reference");
+      await writeFile(join(tempDir, "vote.json"), serializeVotePackage(vote), "utf8");
+      const duplicateEntry = {
+        contentId: "ipfs://bafy-duplicate-reference",
+        path: "vote.json",
+        expectedDigest: digestVotePackage(vote),
+      };
+      const inputPath = join(tempDir, "batch-input.json");
+      await writeFile(
+        inputPath,
+        JSON.stringify({
+          electionId,
+          packages: [duplicateEntry, duplicateEntry],
+        }),
+        "utf8",
+      );
+
+      const result = await runDataAvailabilityCheck(inputPath);
+
+      assert.equal(result.exitCode, 1);
+      assert.equal(result.output.allAvailable, false);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
 });

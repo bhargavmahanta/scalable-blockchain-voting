@@ -23,6 +23,7 @@ if (inputPath === undefined || outputDirectory === undefined) {
   throw new Error("usage: npm run proof:eligible-ballot -- input.json output-directory");
 }
 const root = process.cwd();
+const snarkjsCliPath = path.join(root, "node_modules/snarkjs/build/cli.cjs");
 const buildDirectory = path.join(root, "circuits/build/eligible_ballot");
 const wasmPath = path.join(buildDirectory, "eligible_ballot_js/eligible_ballot.wasm");
 const zkeyPath = path.join(buildDirectory, "eligible_ballot_final.zkey");
@@ -32,13 +33,13 @@ const publicSignalsPath = path.join(resolvedOutputDirectory, "public.json");
 
 await Promise.all([readFile(path.resolve(inputPath)), readFile(wasmPath), readFile(zkeyPath)]);
 await mkdir(resolvedOutputDirectory, { recursive: true });
-const prove = spawnSync("npx", [
-  "snarkjs", "groth16", "fullprove", path.resolve(inputPath), wasmPath,
+const prove = spawnSync(process.execPath, [
+  snarkjsCliPath, "groth16", "fullprove", path.resolve(inputPath), wasmPath,
   zkeyPath, proofPath, publicSignalsPath,
 ], { cwd: root, encoding: "utf8" });
 if (prove.status !== 0) throw new Error(prove.stderr || prove.stdout || "eligible ballot proof failed");
-const calldata = spawnSync("npx", [
-  "snarkjs", "zkey", "export", "soliditycalldata", publicSignalsPath, proofPath,
+const calldata = spawnSync(process.execPath, [
+  snarkjsCliPath, "zkey", "export", "soliditycalldata", publicSignalsPath, proofPath,
 ], { cwd: root, encoding: "utf8" });
 if (calldata.status !== 0) throw new Error(calldata.stderr || calldata.stdout || "calldata export failed");
 const parsed = JSON.parse(`[${calldata.stdout.trim()}]`) as SolidityCallData;

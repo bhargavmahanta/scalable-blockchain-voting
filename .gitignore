@@ -26,6 +26,7 @@ coverage
 artifacts/
 cache/
 ignition/deployments/
+output/
 
 # Locally generated zero-knowledge proving artifacts. The circuit source and
 # generated Solidity verifier are committed; ceremony output is reproducible
