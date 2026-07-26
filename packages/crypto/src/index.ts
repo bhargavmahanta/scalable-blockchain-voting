@@ -14,6 +14,7 @@ import {
 
 export * from "./proofCompatibleBallot.js";
 export * from "./v4.js";
+export * from "./dkg.js";
 
 export type Hex = `0x${string}`;
 export type Bytes32 = Hex;

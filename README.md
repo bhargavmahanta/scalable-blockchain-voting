@@ -151,6 +151,7 @@ Runbook and alignment review:
 - [docs/local-benchmarks.md](docs/local-benchmarks.md)
 - [docs/recursive-batch-proof-spec.md](docs/recursive-batch-proof-spec.md)
 - [docs/v4-production.md](docs/v4-production.md)
+- [docs/dkg-v1.md](docs/dkg-v1.md)
 
 ## Repository layout
 
