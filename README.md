@@ -150,6 +150,7 @@ Runbook and alignment review:
 - [docs/v3-research-improvement-report.md](docs/v3-research-improvement-report.md)
 - [docs/local-benchmarks.md](docs/local-benchmarks.md)
 - [docs/recursive-batch-proof-spec.md](docs/recursive-batch-proof-spec.md)
+- [docs/v4-production.md](docs/v4-production.md)
 
 ## Repository layout
 
