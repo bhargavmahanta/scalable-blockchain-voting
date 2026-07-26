@@ -152,6 +152,7 @@ Runbook and alignment review:
 - [docs/recursive-batch-proof-spec.md](docs/recursive-batch-proof-spec.md)
 - [docs/v4-production.md](docs/v4-production.md)
 - [docs/dkg-v1.md](docs/dkg-v1.md)
+- [docs/constituency-sharding-v4.md](docs/constituency-sharding-v4.md)
 
 ## Repository layout
 
