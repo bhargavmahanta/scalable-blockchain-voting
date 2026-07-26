@@ -13,6 +13,7 @@ import {
 } from "viem";
 
 export * from "./proofCompatibleBallot.js";
+export * from "./v4.js";
 
 export type Hex = `0x${string}`;
 export type Bytes32 = Hex;
